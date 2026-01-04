@@ -1,54 +1,69 @@
-const axios = require('axios');
-
-const csbApi = async () => {
-  const base = await axios.get(
-    "https://raw.githubusercontent.com/nazrul4x/Noobs/main/Apis.json"
-  );
-  return base.data.csb;
-};
+const axios = require("axios");
 
 module.exports = {
   config: {
     name: "imgur",
-    version: "1.0.0",
+    version: "1.0.5",
     role: 0,
-    author: "♡ Nazrul ♡",
-    shortDescription: "imgur upload",
+    author: "DUR4NTO",
     countDown: 0,
     category: "imgur",
     guide: {
-      en: '[reply to image]'
+      en: "[reply to image or video]"
     }
   },
 
   onStart: async function ({ api, event }) {
-    await this.uploadImage(api, event);
+    await this.uploadMedia(api, event);
   },
 
-  onChat: async function ({ event, api }) {
-    if (event.body && event.body.toLowerCase() === "imgur") {
-      await this.uploadImage(api, event);
-    }
-  },
+  uploadMedia: async function (api, event) {
+    let mediaUrl;
 
-  uploadImage: async function (api, event) {
-    let link2;
-
-    if (event.type === "message_reply" && event.messageReply.attachments.length > 0) {
-      link2 = event.messageReply.attachments[0].url;
-    } else if (event.attachments.length > 0) {
-      link2 = event.attachments[0].url;
+    if (
+      event.type === "message_reply" &&
+      event.messageReply &&
+      event.messageReply.attachments &&
+      event.messageReply.attachments.length > 0
+    ) {
+      mediaUrl = event.messageReply.attachments[0].url;
+    } else if (event.attachments && event.attachments.length > 0) {
+      mediaUrl = event.attachments[0].url;
     } else {
-      return api.sendMessage('No attachment detected. Please reply to an image.', event.threadID, event.messageID);
+      return api.sendMessage(
+        "❌ No media detected. Please reply to an image/video or attach one.",
+        event.threadID,
+        event.messageID
+      );
     }
 
     try {
-      const res = await axios.get(`${await csbApi()}/nazrul/imgur?link=${encodeURIComponent(link2)}`);
-      const link = res.data.uploaded.image;
-      return api.sendMessage(`\n\n${link}`, event.threadID, event.messageID);
-    } catch (error) {
-      console.error("Error uploading image to Imgur:", error);
-      return api.sendMessage("An error occurred while uploading the image to Imgur.", event.threadID, event.messageID);
+      const endpoint = `https://www.dur4nto-yeager.rf.gd/api/imgur?url=${encodeURIComponent(mediaUrl)}`;
+      const res = await axios.get(endpoint, { timeout: 20000 });
+      const data = res.data;
+
+      if (!data || data.success !== true || !data.url) {
+        return api.sendMessage(
+          "❌ Upload failed or invalid response from API.",
+          event.threadID,
+          event.messageID
+        );
+      }
+
+      const reply = [
+        "✅ Upload Successful",
+        `🔗 URL: ${data.url}`
+      ].join("\n");
+
+      return api.sendMessage(reply, event.threadID, event.messageID);
+
+    } catch (err) {
+      console.error("Imgur upload error:", err);
+      return api.sendMessage(
+        "❌ Error uploading media. Try again later.",
+        event.threadID,
+        event.messageID
+      );
     }
   }
 };
